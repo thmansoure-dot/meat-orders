@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>تسجيل الدخول — نظام طلبيات الاستيراد</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2235;
+    --border: #1e2d45; --accent: #c8953a; --accent2: #e8b460;
+    --text: #e8eaf0; --text2: #8899aa; --red: #e05252; --green: #3db87a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 2.5rem 2rem;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .logo { text-align: center; margin-bottom: 2rem; }
+  .logo-icon {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 18px; display: inline-flex;
+    align-items: center; justify-content: center;
+    font-size: 30px; margin-bottom: 1rem;
+  }
+  .logo-title { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+  .logo-sub { font-size: 0.8rem; color: var(--text2); margin-top: 4px; }
+  .form-group { margin-bottom: 1rem; }
+  label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
+  input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--text);
+    padding: 10px 14px; border-radius: 10px;
+    font-family: 'Cairo', sans-serif; font-size: 0.95rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  .btn-login {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0a0e17; border: none; border-radius: 10px;
+    font-family: 'Cairo', sans-serif; font-size: 1rem;
+    font-weight: 800; cursor: pointer; margin-top: 0.5rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(200,149,58,0.4); }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .error {
+    background: rgba(224,82,82,0.12);
+    border: 1px solid rgba(224,82,82,0.3);
+    color: var(--red); border-radius: 8px;
+    padding: 10px 14px; font-size: 0.85rem;
+    margin-bottom: 1rem; display: none;
+  }
+  .version { text-align: center; font-size: 0.72rem; color: var(--text2); margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    <div class="logo-icon">🥩</div>
+    <div class="logo-title">نظام طلبيات الاستيراد</div>
+    <div class="logo-sub">إدارة موردي اللحوم — الاتحاد الأوروبي</div>
+  </div>
+
+  <div class="error" id="error-msg"></div>
+
+  <div class="form-group">
+    <label>اسم المستخدم</label>
+    <input type="text" id="username" placeholder="admin" autocomplete="username">
+  </div>
+  <div class="form-group">
+    <label>كلمة المرور</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+
+  <button class="btn-login" id="login-btn" onclick="doLogin()">🔑 تسجيل الدخول</button>
+
+  <div class="version">v2.0 — مدعوم بـ PostgreSQL</div>
+</div>
+
+<script>
+const API = '';  // same origin
+
+// Check if already logged in
+const token = localStorage.getItem('token');
+if (token) {
+  fetch(API + '/api/auth/me', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  }).then(r => {
+    if (r.ok) window.location.href = '/app';
+    else localStorage.removeItem('token');
+  }).catch(() => {});
+}
+
+document.getElementById('password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('username').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('password').focus();
+});
+
+async function doLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('error-msg');
+
+  if (!username || !password) {
+    showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري الدخول...';
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showError(data.detail || 'خطأ في تسجيل الدخول');
+      return;
+    }
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('display_name', data.display_name);
+    localStorage.setItem('user_id', data.user_id);
+    window.location.href = '/app';
+  } catch(e) {
+    showError('تعذر الاتصال بالخادم');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔑 تسجيل الدخول';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
